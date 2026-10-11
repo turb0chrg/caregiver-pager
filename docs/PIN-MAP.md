@@ -96,6 +96,39 @@ CC1101 module = the common 8-pin green breakout (E07-M1101D and clones).
 | GDO0 | **GPIO34** | **GPIO35** | Raw demodulated OOK data in async serial mode. Input-only pins — correct, this line is never driven by the ESP32. |
 | GDO2 | **GPIO25** | **GPIO26** | Not used by v0.1 firmware. Wired now so carrier-sense / Wake-on-Radio is available without a rework. |
 
+### Tenstar CC1101 module: numbered-pin map
+
+The Tenstar module has only pin numbers on the silkscreen, no names. Pin 1 = GND was
+confirmed by continuity to the antenna ground; the remaining order follows the
+Elechouse-compatible layout this module copies. Re-check against your board before first power-up.
+
+| Board pin | Function | Radio A → ESP32 | Radio B → ESP32 | Suggested wire colour |
+|---|---|---|---|---|
+| 1 | GND | GND | GND | Black |
+| 2 | VCC (3.3 V) | 3V3 | 3V3 | Red |
+| 3 | GDO0 | GPIO34 | GPIO35 | Orange |
+| 4 | CSN | GPIO21 | GPIO22 | White (A) / Grey (B) |
+| 5 | SCK | GPIO18 | GPIO18 | Yellow |
+| 6 | MOSI (SI) | GPIO23 | GPIO23 | Green |
+| 7 | MISO (SO / GDO1) | GPIO19 | GPIO19 | Blue |
+| 8 | GDO2 | GPIO25 | GPIO26 | Brown (optional, unused by v0.1 firmware) |
+
+Wire colours are a suggestion, not a standard. Only red = positive and black = ground are
+widely followed. Keep the same colour for the same signal on both radios, and never use
+red for anything other than 3V3.
+
+Before first power-up: confirm pin 1 beeps to the antenna ground, and confirm pin 2 does
+**not** beep to ground. A swapped VCC and GND can destroy the module.
+
+On the KIT B breakout, each GPIO has an S/V/G header row: **S** (yellow) is the GPIO signal,
+**V** (red) is the shared power rail, **G** (black) is ground. Take GND from a G pin, VCC from
+a V pin, and every CC1101 signal from the **S** pin of the matching GPIO row. The V rail is
+usually selectable between 3.3 V and 5 V by a jumper or switch. Set it to 3.3 V and measure
+about 3.3 V between a V and a G pin before connecting any CC1101.
+
+The ESP32-WROOM-32U is pin-identical to the 32D. It differs only in having a U.FL socket
+for an external antenna, so every GPIO assignment in this document applies unchanged.
+
 Other pins in use:
 
 | Function | GPIO | Notes |
@@ -112,7 +145,55 @@ Other pins in use:
 | 10 µF + 100 nF | across VCC/GND **at each CC1101** | The module has minimal local bulk. Decouple at the module, not at the DevKitC. |
 | ~17.3 cm wire whip or SMA | each CC1101 ANT pad | Quarter-wave at 433.92 MHz. Keep the two antennas ≥ 20 cm apart and roughly orthogonal (see §1). |
 
----
+#### Wiring the passives on a breadboard
+
+A Dupont wire already occupies the breakout's S pin, so the resistor has no free hole there.
+The Tenstar's 2×4 header cannot be plugged into the breadboard: its pins would land in the
+same breadboard row and short together. Instead, use **female-to-male Dupont jumpers** (2.54 mm
+pitch) from each module pin to its own breadboard row, and use that row as a junction.
+
+Header orientation, antenna end up, numbers readable (odd pins in one column, even in the other):
+
+```
+   1 GND    2 VCC
+   3 GDO0   4 CSN
+   5 SCK    6 MOSI
+   7 MISO   8 GDO2
+```
+
+Half-size breadboard: holes a–e of a row are connected, f–j are connected, and the centre gap
+separates them. Rows 5–12 are used for Radio A and rows 18–25 for Radio B.
+
+| Breadboard row (Radio A / B) | Module pin | Jumper from module pin to | Then from column e to | Wire colour |
+|---|---|---|---|---|
+| 5 / 18 | 1 GND | a5 / a18 | blue **−** rail | Black |
+| 6 / 19 | 2 VCC | a6 / a19 | red **+** rail | Red |
+| 7 / 20 | 3 GDO0 | a7 / a20 | GPIO34 **S** / GPIO35 **S** | Orange |
+| 8 / 21 | 4 CSN | a8 / a21 | GPIO21 **S** / GPIO22 **S** | White (A) / Grey (B) |
+| 9 / 22 | 5 SCK | a9 / a22 | GPIO18 **S** (A); link e9 to e22 for B | Yellow |
+| 10 / 23 | 6 MOSI | a10 / a23 | GPIO23 **S** (A); link e10 to e23 for B | Green |
+| 11 / 24 | 7 MISO | a11 / a24 | GPIO19 **S** (A); link e11 to e24 for B | Blue |
+| 12 / 25 | 8 GDO2 | a12 / a25 | GPIO25 **S** / GPIO26 **S** (optional) | Brown |
+
+Use the same colour for both jumpers on a signal (module pin to breadboard, breadboard to
+ESP32), and for the A-to-B link wires. Colours are a suggestion, not a standard. Red for
+power and black for ground is the only widely followed convention, so keep red for 3V3 only.
+
+Passives, Radio A (add 13 to each row number for Radio B):
+
+- **Pull-down:** 100 kΩ from **c7** to **c5**, between GDO0 and GND. The resistor sits at the
+  module, which is electrically the same as at the ESP32.
+- **100 nF ceramic:** **b5** to **b6**, between GND and VCC. No polarity.
+- **10 µF electrolytic:** **d5** to **d6**. The long leg (+) goes in d6 (VCC) and the stripe
+  side (−) goes in d5 (GND). Reversing it can make it fail.
+- Keep the caps in the holes next to the module's VCC and GND rows.
+- Jumper the red **+** rail to a V pin and the blue **−** rail to a G pin on the ESP32 breakout.
+  Confirm the V rail measures 3.3 V first. Check the rails are continuous top to bottom, since
+  some breadboards split them in the middle.
+- If the module header is 1.27 mm pitch, standard Dupont connectors won't fit. Use a
+  1.27 mm-to-2.54 mm adapter or solder wires to the pins.
+
+  ---
 
 ## 4. Reserved and forbidden pins
 
